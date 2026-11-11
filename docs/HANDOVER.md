@@ -31,6 +31,21 @@
 - 裏面パネルの自動フィット（2026-11-12、オーナー指示「シングルの裏面はスクロールしなくても収まるように」）: パネル内寸法を em 連動に変更し、`main.ts` の fitBacknote が scrollHeight ≤ clientHeight になるまで font-size を 12px から 0.5px 刻みで縮小（最小 6.5px、resize 時も再調整）。`.backnote` の overflow は hidden。ルールは `docs/SINGLE.md` 裏面節にも追記。e2e に 375x667 で収まることのテストを追加。
 - 歌詞 sync（`src/album/sync.ts`）: 字幕の文言を正本とし、開始時刻は ASR で全行付け直し。行数 track1 46行／track2 30行／track3 22行（計98行）。詳細は下の ASR 節。
 
+## 【デジタルCD台帳反映用レポート】
+
+- カタログ番号：NK-S008
+- タイトル：夜の果ての横浜
+- 形態：シングル
+- 制作担当：NK-S008 制作チャット
+- 状態：公開済み
+- 現行バージョン：1.0.5
+- リポジトリ：tanabata-soft/069mg24l
+- 公開URL：https://tanabata-soft.github.io/069mg24l/
+- 収録曲数：3
+- 総再生時間：約8分41秒
+- 残件・仮置き：確認ポイント①（曲順・表題曲・ボーナス）仮置き、③（歌詞の漢字・表記）仮置き、オーナー実機確認待ち
+- HANDOVER.md更新：済
+
 ## ASR 歌詞再調整（2026-11-11）
 
 - 環境 `~/workspace/.asr-venv`（faster-whisper 1.2.1）。small 単語レベル novad（`tools/whisper_words.py`）と medium フレーズ境界・テキスト付き（`whisper_words_medium.py` / `whisper_text_medium.py`）の両モデルで照合。単語テキスト（medium text の `w`）で境界を裁定し、small で区間開始を裏付け。
