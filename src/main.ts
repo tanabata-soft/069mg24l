@@ -14,8 +14,9 @@ import {
 } from './logic';
 import { exposeTestApi, setData, setupDebug } from './debug';
 import { setupInstallGuide } from './install';
-import { setupUpdateBanner } from './pwa';
+import { requestPersistentStorage, setupUpdateBanner } from './pwa';
 import { downloadAllAudio } from './download';
+import { enterGameMode, exitGameMode } from './game/game-main';
 
 const $ = <T extends HTMLElement>(s: string): T => {
   const el = document.querySelector(s);
@@ -96,7 +97,7 @@ if (SINGLE) {
   fitBacknote();
   requestAnimationFrame(fitBacknote);
   addEventListener('resize', fitBacknote);
-  // インストール入口（残った .book-foot）は曲目画面の末尾へ移す
+  // バージョン表示（.book-foot）は曲目画面の末尾へ移す
   const foot = document.querySelector('.book-foot');
   if (foot) $('.backcover').append(foot);
 }
@@ -109,6 +110,9 @@ let currentView = 'cover';
 
 /* ---------- 画面遷移 ---------- */
 function go(name: string): void {
+  // リズムゲームから出るときは、ゲーム側の後片付け（端スワイプ対策の履歴
+  // ガードの掃除とフルスクリーンの解除）を先にする
+  if (currentView === 'game' && name !== 'game') exitGameMode();
   // トップへ戻っても再生は止めない（シングル・アルバム共通。オーナー指示 2026-11-12。
   // 旧シングル仕様「トップへ戻ると止まる」2026-11-04 は廃止）
   currentView = name;
@@ -136,6 +140,12 @@ $('#btn-play-all').addEventListener('click', () => {
   playTrack(0, true);
 });
 if (!SINGLE) $('#btn-open-tracks').addEventListener('click', () => go('tracks'));
+$('#btn-open-game').addEventListener('click', () => {
+  // リズムゲームに入る時は、CD 側の再生を止める（2つの音が重ならないように）
+  audio.pause();
+  enterGameMode();
+  go('game');
+});
 
 /* ---------- 曲目（裏ジャケット） ---------- */
 function span(cls: string, text: string): HTMLSpanElement {
@@ -395,6 +405,7 @@ lyrBoxEl.addEventListener('pointerdown', (e) => {
   lyrInteractStart();
 });
 lyrBoxEl.addEventListener('pointerup', lyrInteractEnd);
+lyrBoxEl.addEventListener('pointercancel', lyrInteractEnd);
 lyrBoxEl.addEventListener('click', (e) => {
   const p = (e.target as HTMLElement).closest('p');
   if (!p || !lyrBoxEl.contains(p)) return;
@@ -415,7 +426,6 @@ lyrBoxEl.addEventListener('click', (e) => {
   syncLyrics();
   scrollLyricsToCurrent(true);
 });
-lyrBoxEl.addEventListener('pointercancel', lyrInteractEnd);
 lyrBoxEl.addEventListener(
   'wheel',
   () => {
@@ -597,6 +607,8 @@ exposeTestApi({
   },
 });
 setupUpdateBanner($('#update-banner'), $('#update-button'), $('#update-later'));
+// 音源キャッシュがブラウザの容量整理で消えないよう、起動時に永続化を要求しておく
+void requestPersistentStorage();
 // 初回一括ダウンロード（全音源を端末に入れる）。最初の表示が落ち着いてから裏で始める。
 {
   const dlBanner = $('#dl-banner');
@@ -610,6 +622,8 @@ setupUpdateBanner($('#update-banner'), $('#update-button'), $('#update-later'));
       dlLabel.textContent = `ダウンロード中… ${done}/${total}曲`;
     }).then((result) => {
       if (result === 'complete') {
+        // 全音源が入った時点で改めて永続化を要求する（この時点が一番通りやすい）
+        void requestPersistentStorage();
         dlLabel.textContent = 'ダウンロードが終わりました';
         window.setTimeout(() => {
           dlBanner.hidden = true;
@@ -622,7 +636,7 @@ setupUpdateBanner($('#update-banner'), $('#update-button'), $('#update-later'));
     });
   }, 600);
 }
-const installButtons = ['#install-open', '#install-open-cover']
+const installButtons = ['#install-open-cover']
   .map((sel) => document.querySelector<HTMLButtonElement>(sel))
   .filter((b): b is HTMLButtonElement => b !== null);
 setupInstallGuide(
